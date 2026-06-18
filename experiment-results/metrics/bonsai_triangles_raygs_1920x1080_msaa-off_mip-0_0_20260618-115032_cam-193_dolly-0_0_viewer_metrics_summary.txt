@@ -1,0 +1,14 @@
+Metrics file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/metrics/bonsai_triangles_raygs_1920x1080_msaa-off_mip-0_0_20260618-115032_cam-193_dolly-0_0_viewer_metrics.csv
+Samples: 10305
+Measurement range: 0ms -> 12001ms
+
+FPS: avg=858.681, max=882.391
+Frame time: avg=1.165 ms, max=1.293 ms
+Frame e2e: avg=1.112 ms, max=1.401 ms
+Projection: avg=0.172 ms, max=0.424 ms
+Rendering: avg=0.787 ms, max=0.788 ms
+Visible ratio: avg=29.984 %, max=29.984 %
+Total splats: 1244819
+
+Report-ready note:
+平均 FPS 约 858.68，平均 frame e2e 约 1.112 ms。

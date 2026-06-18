@@ -4,6 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+CAMERA_SAMPLE_COUNT="${CAMERA_SAMPLE_COUNT:-10}"
+CAMERA_SAMPLE_SEED="${CAMERA_SAMPLE_SEED:-1029}"
 
 if [[ $# -gt 0 ]]; then
   SCENES=("$@")
@@ -12,6 +14,7 @@ else
 fi
 
 echo "开始执行 Table 1 风格性能实验..."
+echo "相机抽样设置：sample_count=$CAMERA_SAMPLE_COUNT, sample_seed=$CAMERA_SAMPLE_SEED"
 for scene in "${SCENES[@]}"; do
   echo "==> scene: $scene"
   CAMERA_JSON="$SCRIPT_DIR/../models/$scene/cameras.json"
@@ -19,7 +22,13 @@ for scene in "${SCENES[@]}"; do
     echo "未找到 cameras.json：$CAMERA_JSON" >&2
     exit 1
   fi
-  mapfile -t CAMERA_IDS < <(python3 "$SCRIPT_DIR/camera_json_to_env.py" --camera-json "$CAMERA_JSON" --list-ids)
+  mapfile -t CAMERA_IDS < <(
+    python3 "$SCRIPT_DIR/camera_json_to_env.py" \
+      --camera-json "$CAMERA_JSON" \
+      --list-ids \
+      --sample-count "$CAMERA_SAMPLE_COUNT" \
+      --sample-seed "$CAMERA_SAMPLE_SEED"
+  )
   for camera_id in "${CAMERA_IDS[@]}"; do
     echo "   -> camera_id: $camera_id"
     ./all-in-one.sh \

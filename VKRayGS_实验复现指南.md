@@ -8,7 +8,7 @@
 - 已支持 Viewer 性能指标导出 CSV
 - 已支持 `nvidia-smi` 自动采样和摘要生成
 - 已支持从 `models/<scene>/cameras.json` 读取训练相机参数
-- 已支持除近景运动实验外，按 `cameras.json` 的相机序列逐帧运行
+- 已支持除近景运动实验外，从 `cameras.json` 中**按随机种子稳定抽样 10 个视角**进行运行
 - 已支持近景实验基于某个训练相机做 `dolly` 拉近/拉远
 
 ## 1. 仓库功能结构
@@ -150,8 +150,9 @@ python3 ./camera_json_to_env.py --camera-json ../models/bicycle/cameras.json --c
 
 1. **除近景运动实验外**
    - 使用各场景自己的 `models/<scene>/cameras.json`
-   - 按 `camera id` 序列逐帧运行
-   - 这样可以最大程度接近训练/数据集视角
+   - 默认从中**随机抽样 10 个 `camera id`**
+   - 抽样由固定随机种子控制，保证重跑时视角集合一致
+   - 这样既能接近训练/数据集视角，又不会让实验量爆炸
 
 2. **近景运动实验**
    - 从 `cameras.json` 中选一帧或数帧作为起点
@@ -204,27 +205,78 @@ cd /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs
 - `./exp_nearfield_manual.sh`
 - `./run_all_experiments.sh`
 
+### 4.2.1 全部自动化实验启动命令
+
+推荐直接使用：
+
+```bash
+cd /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs
+bash ./run_all_experiments.sh
+```
+
+说明：
+
+- 这条命令会启动**全部自动化实验**
+- 不包含近景运动手动录屏实验
+- 推荐显式写成 `bash ./xxx.sh`，比直接 `./xxx.sh` 更稳一些
+
 ### 4.3 当前批处理脚本默认行为
 
 当前脚本策略已经调整为：
 
 1. `exp_perf_table1.sh`
-   - 对 `bicycle / garden / room / bonsai` 的 `cameras.json` 全部相机帧逐个测试
+   - 对 `bicycle / garden / room / bonsai` 的 `cameras.json` 中随机抽样 10 个视角进行测试
 
 2. `exp_resolution_sweep.sh`
-   - 对指定场景的 `cameras.json` 全部相机帧，在多分辨率下逐个测试
+   - 对指定场景的 `cameras.json` 中随机抽样 10 个视角，在多分辨率下测试
 
 3. `exp_gs_vs_raygs.sh`
-   - 对指定场景的 `cameras.json` 全部相机帧，分别跑 `GS` 和 `RayGS`
+   - 对指定场景的 `cameras.json` 中随机抽样 10 个视角，分别跑 `GS` 和 `RayGS`
 
 4. `exp_mip_sweep.sh`
-   - 对指定场景的 `cameras.json` 全部相机帧，分别跑 baseline / MSAA / Mip-RayGS
+   - 对指定场景的 `cameras.json` 中随机抽样 10 个视角，分别跑 baseline / MSAA / Mip-RayGS
 
 5. `exp_nearfield_manual.sh`
    - 读取某个 `camera_id`
    - 在该帧基础上支持 `dolly`
    - `auto-exit=off`
    - 适合你手动观察、录屏、截图
+
+### 4.4 相机抽样参数
+
+批处理脚本默认使用：
+
+- `CAMERA_SAMPLE_COUNT=10`
+- `CAMERA_SAMPLE_SEED=20250618`
+
+如果你想改抽样数量或随机种子，可以在命令前临时指定：
+
+```bash
+CAMERA_SAMPLE_COUNT=10 CAMERA_SAMPLE_SEED=42 bash ./run_all_experiments.sh
+```
+
+或者：
+
+```bash
+CAMERA_SAMPLE_COUNT=5 CAMERA_SAMPLE_SEED=123 bash ./exp_gs_vs_raygs.sh truck
+```
+
+同一个场景、同一个随机种子、同一个抽样数量，会稳定得到同一组 `camera id`。
+
+### 4.5 当前默认实验规模
+
+按当前默认设置：
+
+- 每个场景随机抽样 `10` 个视角
+- 随机种子默认是 `20250618`
+
+因此当前自动化实验不再是“全视角穷举”，而是“**每个场景固定 10 视角的可重现实验**”。
+
+这意味着：
+
+- 实验量已经从“几千次运行”降到了更可控的规模
+- 不同实验之间仍然可以共享同一组抽样视角
+- 重跑时结果具有可比性
 
 ## 5. Viewer 与脚本可直接记录的指标
 
@@ -445,7 +497,7 @@ experiment-results/tables/run_summary.csv
 当前建议：
 
 - 使用各场景自己的 `cameras.json`
-- 按相机序列逐帧运行
+- 默认随机抽样 10 个固定视角
 - 不录屏
 
 推荐命令：
@@ -469,7 +521,7 @@ experiment-results/tables/run_summary.csv
 当前建议：
 
 - 固定场景，例如 `bicycle`
-- 使用该场景 `cameras.json` 全序列
+- 使用该场景 `cameras.json` 中随机抽样 10 个固定视角
 - 不录屏
 
 推荐命令：
@@ -488,7 +540,7 @@ experiment-results/tables/run_summary.csv
 
 当前建议：
 
-- 用 `cameras.json` 的同一序列做两次运行
+- 用 `cameras.json` 的同一组抽样视角做两次运行
 - 第一遍不录屏，拿定量数据
 - 第二遍挑选典型视角录屏和截图
 

@@ -1,8 +1,0 @@
-GPU log file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/gpu/bicycle_triangles_raygs_1920x1080_msaa-off_mip-0_0_20260618-102428_cam-0_dolly-0_10_gpu.csv
-Samples: 1
-
-GPU utilization: N/A %
-Memory utilization: N/A %
-VRAM used: N/A  MiB
-Power draw: N/A  W
-

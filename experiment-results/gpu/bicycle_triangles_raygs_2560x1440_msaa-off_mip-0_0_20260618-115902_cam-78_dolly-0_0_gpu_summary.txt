@@ -1,0 +1,12 @@
+GPU log file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/gpu/bicycle_triangles_raygs_2560x1440_msaa-off_mip-0_0_20260618-115902_cam-78_dolly-0_0_gpu.csv
+Samples: 19
+Time range: 2026/06/18 11:59:02.844 -> 2026/06/18 11:59:20.848
+
+GPU utilization: avg=92.84%, max=100.00%, min=2.00%
+Memory utilization: avg=46.79%, max=53.00%, min=0.00%
+VRAM used: avg=2626.95 MiB, max=4116.00 MiB, min=551.00 MiB
+VRAM total: 16376 MiB
+Power draw: avg=222.73 W, max=247.76 W, min=49.81 W
+
+Report-ready note:
+平均 GPU 利用率约 92.8%，峰值显存约 4116 MiB。

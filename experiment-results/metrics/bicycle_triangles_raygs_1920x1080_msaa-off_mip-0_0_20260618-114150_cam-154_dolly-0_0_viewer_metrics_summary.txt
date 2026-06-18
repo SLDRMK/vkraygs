@@ -1,0 +1,14 @@
+Metrics file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/metrics/bicycle_triangles_raygs_1920x1080_msaa-off_mip-0_0_20260618-114150_cam-154_dolly-0_0_viewer_metrics.csv
+Samples: 5829
+Measurement range: 0ms -> 12001.6ms
+
+FPS: avg=485.646, max=501.219
+Frame time: avg=2.059 ms, max=2.166 ms
+Frame e2e: avg=2.006 ms, max=2.429 ms
+Projection: avg=0.783 ms, max=1.104 ms
+Rendering: avg=0.764 ms, max=0.893 ms
+Visible ratio: avg=27.201 %, max=27.201 %
+Total splats: 6131954
+
+Report-ready note:
+平均 FPS 约 485.65，平均 frame e2e 约 2.006 ms。

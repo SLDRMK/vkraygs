@@ -1,1 +1,0 @@
-timestamp_ns,measurement_elapsed_ms,fps,frame_time_ms,frame_e2e_ms,total_ms,rank_ms,sort_ms,inverse_ms,projection_ms,rendering_ms,present_ms,total_splats,loaded_splats,visible_splats,visible_ratio,width,height,model_type,draw_method,msaa,vsync,mip_bias,mip_modulation,log_p_min

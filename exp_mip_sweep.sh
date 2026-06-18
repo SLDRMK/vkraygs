@@ -4,6 +4,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
+CAMERA_SAMPLE_COUNT="${CAMERA_SAMPLE_COUNT:-10}"
+CAMERA_SAMPLE_SEED="${CAMERA_SAMPLE_SEED:-1029}"
 
 SCENE="${1:-bicycle}"
 CAMERA_JSON="$SCRIPT_DIR/../models/$SCENE/cameras.json"
@@ -13,9 +15,16 @@ if [[ ! -f "$CAMERA_JSON" ]]; then
   exit 1
 fi
 
-mapfile -t CAMERA_IDS < <(python3 "$SCRIPT_DIR/camera_json_to_env.py" --camera-json "$CAMERA_JSON" --list-ids)
+mapfile -t CAMERA_IDS < <(
+  python3 "$SCRIPT_DIR/camera_json_to_env.py" \
+    --camera-json "$CAMERA_JSON" \
+    --list-ids \
+    --sample-count "$CAMERA_SAMPLE_COUNT" \
+    --sample-seed "$CAMERA_SAMPLE_SEED"
+)
 
 echo "开始执行 MIP / MSAA 对比实验，scene=$SCENE ..."
+echo "相机抽样设置：sample_count=$CAMERA_SAMPLE_COUNT, sample_seed=$CAMERA_SAMPLE_SEED"
 
 echo "==> RayGS baseline"
 for camera_id in "${CAMERA_IDS[@]}"; do

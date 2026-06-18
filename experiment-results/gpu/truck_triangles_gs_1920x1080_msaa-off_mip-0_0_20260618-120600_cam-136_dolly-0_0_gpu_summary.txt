@@ -1,0 +1,12 @@
+GPU log file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/gpu/truck_triangles_gs_1920x1080_msaa-off_mip-0_0_20260618-120600_cam-136_dolly-0_0_gpu.csv
+Samples: 18
+Time range: 2026/06/18 12:06:00.528 -> 2026/06/18 12:06:17.531
+
+GPU utilization: avg=94.94%, max=100.00%, min=9.00%
+Memory utilization: avg=42.56%, max=45.00%, min=1.00%
+VRAM used: avg=2503.94 MiB, max=2627.00 MiB, min=548.00 MiB
+VRAM total: 16376 MiB
+Power draw: avg=218.78 W, max=233.31 W, min=75.23 W
+
+Report-ready note:
+平均 GPU 利用率约 94.9%，峰值显存约 2627 MiB。

@@ -1,0 +1,14 @@
+Metrics file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/metrics/truck_triangles_gs_1920x1080_msaa-off_mip-0_0_20260618-120636_cam-154_dolly-0_0_viewer_metrics.csv
+Samples: 5833
+Measurement range: 0ms -> 12001.4ms
+
+FPS: avg=485.961, max=501.525
+Frame time: avg=2.058 ms, max=2.167 ms
+Frame e2e: avg=1.984 ms, max=2.220 ms
+Projection: avg=0.404 ms, max=0.649 ms
+Rendering: avg=1.311 ms, max=1.338 ms
+Visible ratio: avg=38.552 %, max=38.552 %
+Total splats: 2541226
+
+Report-ready note:
+平均 FPS 约 485.96，平均 frame e2e 约 1.984 ms。

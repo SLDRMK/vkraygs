@@ -1,0 +1,14 @@
+Metrics file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/metrics/room_triangles_raygs_1920x1080_msaa-off_mip-0_0_20260618-114843_cam-286_dolly-0_0_viewer_metrics.csv
+Samples: 9215
+Measurement range: 0ms -> 12000.6ms
+
+FPS: avg=767.884, max=793.480
+Frame time: avg=1.302 ms, max=1.437 ms
+Frame e2e: avg=1.240 ms, max=1.799 ms
+Projection: avg=0.175 ms, max=0.734 ms
+Rendering: avg=0.908 ms, max=0.910 ms
+Visible ratio: avg=24.803 %, max=24.803 %
+Total splats: 1593376
+
+Report-ready note:
+平均 FPS 约 767.88，平均 frame e2e 约 1.240 ms。

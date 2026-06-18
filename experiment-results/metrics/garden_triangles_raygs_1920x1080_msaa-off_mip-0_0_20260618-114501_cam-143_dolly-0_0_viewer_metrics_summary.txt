@@ -1,0 +1,14 @@
+Metrics file: /home/sldrmk/WorkSpace/ComputerGraphics/vkraygs/experiment-results/metrics/garden_triangles_raygs_1920x1080_msaa-off_mip-0_0_20260618-114501_cam-143_dolly-0_0_viewer_metrics.csv
+Samples: 5103
+Measurement range: 0ms -> 12000.1ms
+
+FPS: avg=425.223, max=439.758
+Frame time: avg=2.352 ms, max=2.490 ms
+Frame e2e: avg=2.288 ms, max=2.759 ms
+Projection: avg=0.896 ms, max=1.247 ms
+Rendering: avg=0.906 ms, max=0.908 ms
+Visible ratio: avg=32.660 %, max=32.660 %
+Total splats: 5834784
+
+Report-ready note:
+平均 FPS 约 425.22，平均 frame e2e 约 2.288 ms。
