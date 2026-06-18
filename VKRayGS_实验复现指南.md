@@ -653,6 +653,539 @@ experiment-results/tables/run_summary.csv
 ./exp_nearfield_manual.sh bicycle raygs 1080p 0 -0.2
 ```
 
+### 8.8 LaTeX 截图命令清单
+
+如果最终报告放进 LaTeX 且只使用图片，建议补充三组截图：
+
+1. `GS vs RayGS` 近景几何对比
+2. `RayGS / MSAA / Mip-RayGS` 抗锯齿对比
+3. 近景运动关键帧图
+
+建议先创建目录：
+
+```bash
+mkdir -p ./experiment-results/screenshots ./experiment-results/notes
+```
+
+当前 Viewer 没有内置截图按钮，因此请在启动后用系统截图工具手动保存，并严格按下述文件名命名。
+
+#### 8.8.1 GS vs RayGS 近景几何对比
+
+##### `truck`，`camera_id=0`
+
+保存文件名：
+
+- `experiment-results/screenshots/truck_cam0_gs.png`
+- `experiment-results/screenshots/truck_cam0_raygs.png`
+
+GS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene truck \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/truck/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene truck \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/truck/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+##### `truck`，`camera_id=6`
+
+保存文件名：
+
+- `experiment-results/screenshots/truck_cam6_gs.png`
+- `experiment-results/screenshots/truck_cam6_raygs.png`
+
+GS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene truck \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/truck/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene truck \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/truck/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+##### `bicycle`，`camera_id=0`
+
+保存文件名：
+
+- `experiment-results/screenshots/bicycle_cam0_gs.png`
+- `experiment-results/screenshots/bicycle_cam0_raygs.png`
+
+GS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+##### `bicycle`，`camera_id=6`
+
+保存文件名：
+
+- `experiment-results/screenshots/bicycle_cam6_gs.png`
+- `experiment-results/screenshots/bicycle_cam6_raygs.png`
+
+GS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+#### 8.8.2 RayGS / MSAA / Mip-RayGS 抗锯齿对比
+
+##### `bicycle`，`camera_id=0`
+
+保存文件名：
+
+- `experiment-results/screenshots/bicycle_cam0_raygs.png`
+- `experiment-results/screenshots/bicycle_cam0_msaa4x.png`
+- `experiment-results/screenshots/bicycle_cam0_mipraygs.png`
+
+RayGS baseline：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS + MSAA 4x：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa 4x \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+Mip-RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.1 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+##### `bicycle`，`camera_id=6`
+
+保存文件名：
+
+- `experiment-results/screenshots/bicycle_cam6_raygs.png`
+- `experiment-results/screenshots/bicycle_cam6_msaa4x.png`
+- `experiment-results/screenshots/bicycle_cam6_mipraygs.png`
+
+RayGS baseline：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS + MSAA 4x：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa 4x \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+Mip-RayGS：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.1 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 6 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+#### 8.8.3 近景运动关键帧图
+
+建议最终在 LaTeX 中排成 2 行 3 列：
+
+- 第一行：`GS` 的 `far / mid / near`
+- 第二行：`RayGS` 的 `far / mid / near`
+
+##### `bicycle`，`camera_id=0`
+
+保存文件名：
+
+- `experiment-results/screenshots/bicycle_near_gs_far.png`
+- `experiment-results/screenshots/bicycle_near_gs_mid.png`
+- `experiment-results/screenshots/bicycle_near_gs_near.png`
+- `experiment-results/screenshots/bicycle_near_raygs_far.png`
+- `experiment-results/screenshots/bicycle_near_raygs_mid.png`
+- `experiment-results/screenshots/bicycle_near_raygs_near.png`
+
+GS，far：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+GS，mid：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.2 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+GS，near：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type gs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.4 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS，far：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.0 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS，mid：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.2 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+RayGS，near：
+
+```bash
+bash ./all-in-one.sh \
+  --scene bicycle \
+  --resolution 1080p \
+  --model-type raygs \
+  --draw-method triangles \
+  --msaa off \
+  --mip-bias 0.0 \
+  --mip-modulation on \
+  --vsync off \
+  --axis off \
+  --grid off \
+  --camera-json ./../models/bicycle/cameras.json \
+  --camera-id 0 \
+  --camera-dolly 0.4 \
+  --metrics-log off \
+  --auto-exit off
+```
+
+#### 8.8.4 建议的截图文件清单
+
+建议统一按以下文件名管理：
+
+```text
+experiment-results/screenshots/
+├── truck_cam0_gs.png
+├── truck_cam0_raygs.png
+├── truck_cam6_gs.png
+├── truck_cam6_raygs.png
+├── bicycle_cam0_gs.png
+├── bicycle_cam0_raygs.png
+├── bicycle_cam6_gs.png
+├── bicycle_cam6_raygs.png
+├── bicycle_cam0_msaa4x.png
+├── bicycle_cam0_mipraygs.png
+├── bicycle_cam6_msaa4x.png
+├── bicycle_cam6_mipraygs.png
+├── bicycle_near_gs_far.png
+├── bicycle_near_gs_mid.png
+├── bicycle_near_gs_near.png
+├── bicycle_near_raygs_far.png
+├── bicycle_near_raygs_mid.png
+└── bicycle_near_raygs_near.png
+```
+
+如果不想截太多，最小可交付集合优先保留：
+
+- `truck_cam0_gs.png`
+- `truck_cam0_raygs.png`
+- `truck_cam6_gs.png`
+- `truck_cam6_raygs.png`
+- `bicycle_cam0_raygs.png`
+- `bicycle_cam0_msaa4x.png`
+- `bicycle_cam0_mipraygs.png`
+- `bicycle_cam6_raygs.png`
+- `bicycle_cam6_msaa4x.png`
+- `bicycle_cam6_mipraygs.png`
+- `bicycle_near_gs_far.png`
+- `bicycle_near_gs_mid.png`
+- `bicycle_near_gs_near.png`
+- `bicycle_near_raygs_far.png`
+- `bicycle_near_raygs_mid.png`
+- `bicycle_near_raygs_near.png`
+
 ## 9. 建议记录的数据指标
 
 ### 9.1 定量指标
