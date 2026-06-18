@@ -11,6 +11,81 @@
 - 已支持除近景运动实验外，从 `cameras.json` 中**按随机种子稳定抽样 10 个视角**进行运行
 - 已支持近景实验基于某个训练相机做 `dolly` 拉近/拉远
 
+## 0. 模型来源与数据准备
+
+### 0.1 预训练模型来源
+
+本文档使用的是作者公开提供的 3D Gaussian Splatting 预训练模型，下载命令如下：
+
+```bash
+cd "/home/sldrmk/WorkSpace/ComputerGraphics"
+wget "https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/datasets/pretrained/models.zip"
+unzip models.zip
+```
+
+解压后会在工作目录下生成 `models/` 目录，后续所有实验脚本默认从这里读取场景数据。
+
+### 0.2 数据编排规则
+
+当前实验脚本默认假设数据目录结构如下：
+
+```text
+/home/sldrmk/WorkSpace/ComputerGraphics/
+├── models/
+│   ├── bicycle/
+│   │   ├── cameras.json
+│   │   ├── cfg_args
+│   │   └── point_cloud/
+│   │       └── iteration_30000/
+│   │           └── point_cloud.ply
+│   ├── garden/
+│   ├── room/
+│   ├── bonsai/
+│   └── truck/
+└── vkraygs/
+```
+
+其中各文件/目录的作用为：
+
+- `models/<scene>/point_cloud/iteration_30000/point_cloud.ply`
+  - Viewer 真正加载的 Gaussian 模型文件
+  - `all-in-one.sh --scene <scene>` 默认就是定位到这里
+
+- `models/<scene>/cameras.json`
+  - 训练/数据集导出的相机参数
+  - 当前脚本会从中抽样视角，或在近景实验中选某一帧作为起点
+
+- `models/<scene>/cfg_args`
+  - 原始训练或导出时的配置记录
+  - 当前实验流程不直接依赖它来启动 Viewer，但保留它有助于核对模型来源
+
+### 0.3 当前脚本如何使用这些数据
+
+1. `all-in-one.sh --scene bicycle`
+   - 默认读取：
+     - `../models/bicycle/point_cloud/iteration_30000/point_cloud.ply`
+
+2. 如果额外指定：
+
+```bash
+--camera-json ../models/bicycle/cameras.json --camera-id 0
+```
+
+则会进一步读取 `cameras.json` 中对应相机的姿态与内参，覆盖默认启动视角。
+
+3. 批处理脚本例如：
+   - `exp_perf_table1.sh`
+   - `exp_resolution_sweep.sh`
+   - `exp_gs_vs_raygs.sh`
+   - `exp_mip_sweep.sh`
+
+都会按上述目录规则自动寻找：
+
+- 模型文件 `point_cloud.ply`
+- 相机文件 `cameras.json`
+
+因此，如果你后续新增场景，建议严格复用这一目录结构，否则脚本需要手动改路径。
+
 ## 1. 仓库功能结构
 
 ```text
@@ -430,13 +505,13 @@ experiment-results/tables/run_summary.csv
 - `power_avg_w`
 - `power_max_w`
 
-## 7. 实验执行原则：性能与录屏分两遍
+## 7. 实验执行原则：性能与效果材料分两遍
 
 这是当前实验整理中非常重要的一点。
 
 ### 7.1 为什么要分两遍
 
-录屏通常会导致 FPS 下降，因为它会额外占用：
+无论是截图还是录屏，都建议和性能采集分开进行；其中录屏尤其容易导致 FPS 下降，因为它会额外占用：
 
 - GPU 编码器资源
 - 显存带宽
@@ -445,8 +520,8 @@ experiment-results/tables/run_summary.csv
 
 因此：
 
-- **性能统计结果不要在录屏时采集**
-- **录屏结果不要当作正式 FPS 数据**
+- **性能统计结果不要在截图/录屏时采集**
+- **效果材料采集阶段的 FPS 不要当作正式性能数据**
 
 ### 7.2 推荐执行方式
 
@@ -456,27 +531,30 @@ experiment-results/tables/run_summary.csv
    - 记录 `FPS / frame time / GPU util / VRAM`
    - 用于表格、曲线、定量分析
 
-2. **第二遍：纯效果观察**
+2. **第二遍：纯效果材料采集**
    - 单独开 Viewer
-   - 配合录屏与截图
+   - 以截图为主，录屏为可选补充
    - 只做主观现象分析
    - 不把这遍 FPS 写入正式性能结果
 
-### 7.3 哪些实验需要录屏
+### 7.3 哪些实验需要单独采集效果材料
 
-建议录屏的实验：
+建议单独采集截图或视频的实验：
 
 1. **近景运动实验**
-   - 最需要录屏
+   - 最需要补效果材料
    - 观察 `GS` 与 `RayGS` 在接近物体过程中的几何一致性差异
+   - 如果最终写 LaTeX 且只放图片，建议改成关键帧截图
 
 2. **MIP / MSAA / RayGS 效果对比**
-   - 远景高频结构更适合录视频观察闪烁与锯齿
+   - 远景高频结构建议至少截图
+   - 如果你还想额外观察闪烁，视频可作为补充材料
 
 3. **GS vs RayGS 近景局部对比**
-   - 如果某些固定视角容易出现明显伪影，建议录短视频做补充
+   - 这是最适合放进 LaTeX 的静态对比图
+   - 如果某些固定视角容易出现明显伪影，可额外录短视频做补充
 
-通常不需要录屏的实验：
+通常不需要单独采集效果材料的实验：
 
 - Table 1 风格性能实验
 - 分辨率扫描实验
@@ -542,7 +620,7 @@ experiment-results/tables/run_summary.csv
 
 - 用 `cameras.json` 的同一组抽样视角做两次运行
 - 第一遍不录屏，拿定量数据
-- 第二遍挑选典型视角录屏和截图
+- 第二遍挑选典型视角截图，必要时补录屏
 
 推荐命令：
 
@@ -567,7 +645,7 @@ experiment-results/tables/run_summary.csv
 当前建议：
 
 - 第一遍不录屏，拿性能结果
-- 第二遍录屏观察细节闪烁
+- 第二遍截图观察细节，必要时补录屏观察闪烁
 
 推荐命令：
 
@@ -642,7 +720,7 @@ experiment-results/tables/run_summary.csv
 1. 从 `cameras.json` 中选择一帧作为起点
 2. 用 `--camera-dolly` 做前后偏移
 3. 进入 Viewer 后继续手动微调
-4. 配合录屏完成主观对比
+4. 优先采集关键帧截图；如需观察动态变化，可额外录屏
 
 推荐命令：
 
@@ -668,6 +746,7 @@ mkdir -p ./experiment-results/screenshots ./experiment-results/notes
 ```
 
 当前 Viewer 没有内置截图按钮，因此请在启动后用系统截图工具手动保存，并严格按下述文件名命名。
+下述文件名已经避免了不同实验组之间的重名冲突。
 
 #### 8.8.1 GS vs RayGS 近景几何对比
 
@@ -865,7 +944,7 @@ bash ./all-in-one.sh \
 
 保存文件名：
 
-- `experiment-results/screenshots/bicycle_cam0_raygs.png`
+- `experiment-results/screenshots/bicycle_cam0_raygs_aa_base.png`
 - `experiment-results/screenshots/bicycle_cam0_msaa4x.png`
 - `experiment-results/screenshots/bicycle_cam0_mipraygs.png`
 
@@ -933,7 +1012,7 @@ bash ./all-in-one.sh \
 
 保存文件名：
 
-- `experiment-results/screenshots/bicycle_cam6_raygs.png`
+- `experiment-results/screenshots/bicycle_cam6_raygs_aa_base.png`
 - `experiment-results/screenshots/bicycle_cam6_msaa4x.png`
 - `experiment-results/screenshots/bicycle_cam6_mipraygs.png`
 
@@ -1155,8 +1234,10 @@ experiment-results/screenshots/
 ├── bicycle_cam0_raygs.png
 ├── bicycle_cam6_gs.png
 ├── bicycle_cam6_raygs.png
+├── bicycle_cam0_raygs_aa_base.png
 ├── bicycle_cam0_msaa4x.png
 ├── bicycle_cam0_mipraygs.png
+├── bicycle_cam6_raygs_aa_base.png
 ├── bicycle_cam6_msaa4x.png
 ├── bicycle_cam6_mipraygs.png
 ├── bicycle_near_gs_far.png
@@ -1173,10 +1254,10 @@ experiment-results/screenshots/
 - `truck_cam0_raygs.png`
 - `truck_cam6_gs.png`
 - `truck_cam6_raygs.png`
-- `bicycle_cam0_raygs.png`
+- `bicycle_cam0_raygs_aa_base.png`
 - `bicycle_cam0_msaa4x.png`
 - `bicycle_cam0_mipraygs.png`
-- `bicycle_cam6_raygs.png`
+- `bicycle_cam6_raygs_aa_base.png`
 - `bicycle_cam6_msaa4x.png`
 - `bicycle_cam6_mipraygs.png`
 - `bicycle_near_gs_far.png`
@@ -1243,7 +1324,7 @@ experiment-results/screenshots/
 5. 模型规模对性能有显著影响，但 `visible splats` 或 `visible ratio` 往往比 `total splats` 更能解释实时性能差异。
 6. RTX4080 相比 RTX2080 的性能优势不仅来自更高 FLOPS，还来自更高带宽、更大缓存和更强的硬件图形管线吞吐。
 7. 使用 `cameras.json` 的训练相机序列可以减少默认视角偏差，使复现实验中的视角控制更稳定、更可比。
-8. 性能实验应在**不录屏**条件下采集；录屏应单独作为效果观察流程，不纳入正式性能统计。
+8. 性能实验应在**不截图、不录屏**条件下采集；效果材料应单独采集，不纳入正式性能统计。
 
 ## 12. 当前限制与后续建议
 
@@ -1285,7 +1366,7 @@ experiment-results/
 ├── gpu/           # nvidia-smi 原始日志与摘要
 ├── metrics/       # Viewer 逐帧 CSV 与摘要
 ├── screenshots/   # 截图
-├── videos/        # 录屏
+├── videos/        # 录屏（可选）
 ├── tables/        # 汇总表
 └── notes/         # 实验记录与观察结论
 ```
@@ -1293,5 +1374,5 @@ experiment-results/
 ### 当前建议的整理方式
 
 1. 自动化脚本先跑一遍，不录屏，生成 `gpu/`、`metrics/`、`tables/`
-2. 再单独跑一遍主观效果实验，生成 `screenshots/`、`videos/`、`notes/`
+2. 再单独跑一遍主观效果实验，优先生成 `screenshots/` 与 `notes/`；如有需要再补 `videos/`
 3. 课程报告优先引用第一遍的定量结果，第二遍只用于展示现象和局部细节
