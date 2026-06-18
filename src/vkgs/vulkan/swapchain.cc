@@ -1,5 +1,8 @@
 #include "vkgs/vulkan/swapchain.h"
 
+#include <algorithm>
+#include <vector>
+
 namespace vkgs {
 namespace vk {
 
@@ -8,11 +11,7 @@ class Swapchain::Impl {
   Impl() = delete;
 
   Impl(Context context, VkSurfaceKHR surface, bool vsync) : context_(context), surface_(surface) {
-    if (vsync) {
-      present_mode_ = VK_PRESENT_MODE_FIFO_KHR;
-    } else {
-      present_mode_ = VK_PRESENT_MODE_MAILBOX_KHR;
-    }
+    present_mode_ = SelectPresentMode(vsync);
 
     usage_ = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
     format_ = VK_FORMAT_B8G8R8A8_UNORM;
@@ -92,12 +91,7 @@ class Swapchain::Impl {
   }
 
   void SetVsync(bool flag = true) {
-    VkPresentModeKHR present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    if (flag) {
-      present_mode = VK_PRESENT_MODE_FIFO_KHR;
-    } else {
-      present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
-    }
+    VkPresentModeKHR present_mode = SelectPresentMode(flag);
 
     if (present_mode_ != present_mode) {
       present_mode_ = present_mode;
@@ -157,6 +151,25 @@ class Swapchain::Impl {
   }
 
  private:
+  VkPresentModeKHR SelectPresentMode(bool vsync) const {
+    uint32_t count = 0;
+    vkGetPhysicalDeviceSurfacePresentModesKHR(context_.physical_device(), surface_, &count, NULL);
+    std::vector<VkPresentModeKHR> modes(count);
+    vkGetPhysicalDeviceSurfacePresentModesKHR(context_.physical_device(), surface_, &count, modes.data());
+
+    auto supports = [&modes](VkPresentModeKHR mode) {
+      return std::find(modes.begin(), modes.end(), mode) != modes.end();
+    };
+
+    if (vsync) {
+      return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    if (supports(VK_PRESENT_MODE_IMMEDIATE_KHR)) return VK_PRESENT_MODE_IMMEDIATE_KHR;
+    if (supports(VK_PRESENT_MODE_MAILBOX_KHR)) return VK_PRESENT_MODE_MAILBOX_KHR;
+    return VK_PRESENT_MODE_FIFO_KHR;
+  }
+
   Context context_;
   VkPresentModeKHR present_mode_ = VK_PRESENT_MODE_FIFO_KHR;
   VkSurfaceKHR surface_ = VK_NULL_HANDLE;

@@ -7,11 +7,15 @@
 #include <vkgs/engine/engine.h>
 
 #include <atomic>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
 #include <iostream>
-#include <stdexcept>
 #include <algorithm>
+#include <sstream>
 #include <mutex>
 #include <map>
+#include <stdexcept>
 
 #include <vulkan/vulkan.h>
 
@@ -113,6 +117,30 @@ std::vector<Resolution> preset_resolutions = {
     // clang-format on
 };
 
+VkSampleCountFlagBits ToVkSampleCount(Engine::Msaa msaa) {
+  switch (msaa) {
+    case Engine::Msaa::Off:
+      return VK_SAMPLE_COUNT_1_BIT;
+    case Engine::Msaa::X2:
+      return VK_SAMPLE_COUNT_2_BIT;
+    case Engine::Msaa::X4:
+      return VK_SAMPLE_COUNT_4_BIT;
+  }
+
+  return VK_SAMPLE_COUNT_1_BIT;
+}
+
+VkFormat ToVkDepthFormat(Engine::DepthFormat depth_format) {
+  switch (depth_format) {
+    case Engine::DepthFormat::U16:
+      return VK_FORMAT_D16_UNORM;
+    case Engine::DepthFormat::F32:
+      return VK_FORMAT_D32_SFLOAT;
+  }
+
+  return VK_FORMAT_D32_SFLOAT;
+}
+
 }  // namespace
 
 class Engine::Impl {
@@ -131,6 +159,8 @@ class Engine::Impl {
     Windowed,
     WindowedFullscreen,
   };
+
+  struct FrameInfo;
 
  public:
   Impl() {
@@ -599,9 +629,152 @@ class Engine::Impl {
     for (auto query_pool : timestamp_query_pools_) vkDestroyQueryPool(context_.device(), query_pool, NULL);
   }
 
+  void SetStartupOptions(const Engine::StartupOptions& options) {
+    window_width_ = std::max(options.width, 1);
+    window_height_ = std::max(options.height, 1);
+
+    display_mode_ = options.display_mode == Engine::DisplayMode::WindowedFullscreen ? DisplayMode::WindowedFullscreen
+                                                                                    : DisplayMode::Windowed;
+
+    vsync_enabled_ = options.vsync;
+    ui_vsync_ = vsync_enabled_ ? 1 : 0;
+
+    samples_ = ToVkSampleCount(options.msaa);
+    switch (options.msaa) {
+      case Engine::Msaa::Off:
+        ui_msaa_ = 0;
+        break;
+      case Engine::Msaa::X2:
+        ui_msaa_ = 1;
+        break;
+      case Engine::Msaa::X4:
+        ui_msaa_ = 2;
+        break;
+    }
+
+    depth_format_ = ToVkDepthFormat(options.depth_format);
+    ui_depth_format_ = options.depth_format == Engine::DepthFormat::U16 ? 0 : 1;
+
+    if (options.draw_method == Engine::DrawMethod::GeometryShader && context_.geometry_shader_available()) {
+      splat_render_mode_ = SplatRenderMode::GeometryShader;
+      ui_draw_method_ = 1;
+      model_type_ = ModelType::GS;
+      ui_model_type_ = 0;
+    } else {
+      splat_render_mode_ = SplatRenderMode::TriangleList;
+      ui_draw_method_ = 0;
+      model_type_ = options.model_type == Engine::ModelType::GS ? ModelType::GS : ModelType::RayGS;
+      ui_model_type_ = model_type_ == ModelType::GS ? 0 : 1;
+    }
+
+    splat_push_constants_.mip_bias = options.mip_bias;
+    splat_push_constants_.mip_modulation = options.mip_modulation;
+    splat_push_constants_.log_p_min = options.log_p_min;
+
+    show_axis_ = options.show_axis;
+    show_grid_ = options.show_grid;
+
+    metrics_csv_path_ = options.metrics_csv_path;
+    warmup_seconds_ = std::max(options.warmup_seconds, 0.0);
+    capture_seconds_ = std::max(options.capture_seconds, 0.0);
+    auto_close_when_done_ = options.auto_close;
+  }
+
+  const char* ModelTypeTag() const {
+    return model_type_ == ModelType::GS ? "gs" : "raygs";
+  }
+
+  const char* DrawMethodTag() const {
+    return splat_render_mode_ == SplatRenderMode::GeometryShader ? "geom" : "triangles";
+  }
+
+  int MsaaSamples() const {
+    switch (samples_) {
+      case VK_SAMPLE_COUNT_1_BIT:
+        return 1;
+      case VK_SAMPLE_COUNT_2_BIT:
+        return 2;
+      case VK_SAMPLE_COUNT_4_BIT:
+        return 4;
+      default:
+        return 1;
+    }
+  }
+
+  void OpenMetricsStreamIfNeeded() {
+    if (metrics_csv_path_.empty() || metrics_stream_.is_open()) return;
+
+    auto path = std::filesystem::path(metrics_csv_path_);
+    if (path.has_parent_path()) {
+      std::filesystem::create_directories(path.parent_path());
+    }
+
+    metrics_stream_.open(path, std::ios::out | std::ios::trunc);
+    if (!metrics_stream_) {
+      throw std::runtime_error("Failed to open metrics CSV: " + metrics_csv_path_);
+    }
+
+    metrics_stream_ << "timestamp_ns,measurement_elapsed_ms,fps,frame_time_ms,frame_e2e_ms,total_ms,rank_ms,sort_ms,"
+                       "inverse_ms,projection_ms,rendering_ms,present_ms,total_splats,loaded_splats,visible_splats,"
+                       "visible_ratio,width,height,model_type,draw_method,msaa,vsync,mip_bias,mip_modulation,"
+                       "log_p_min\n";
+    metrics_stream_.flush();
+  }
+
+  void MaybeLogMetrics(const FrameInfo& frame_info) {
+    if (!metrics_stream_.is_open()) return;
+    if (frame_info.total_point_count == 0 || frame_info.loaded_point_count == 0) return;
+
+    uint64_t now = Clock::timestamp();
+    if (frame_info.loaded_point_count == frame_info.total_point_count && load_completed_timestamp_ns_ == 0) {
+      load_completed_timestamp_ns_ = now;
+    }
+
+    if (load_completed_timestamp_ns_ == 0) return;
+
+    const uint64_t warmup_ns = static_cast<uint64_t>(warmup_seconds_ * 1e9);
+    if (now < load_completed_timestamp_ns_ + warmup_ns) return;
+
+    if (!metrics_capture_started_) {
+      metrics_capture_started_ = true;
+      metrics_capture_start_ns_ = now;
+    }
+
+    const double elapsed_ms = static_cast<double>(now - metrics_capture_start_ns_) / 1e6;
+    const uint64_t total_time =
+        frame_info.rank_time + frame_info.sort_time + frame_info.inverse_time + frame_info.projection_time +
+        frame_info.rendering_time;
+    const double present_ms = static_cast<double>(frame_info.present_done_timestamp - frame_info.present_timestamp) / 1e6;
+
+    metrics_stream_ << now << ',' << elapsed_ms << ',' << frame_info.fps << ',' << frame_info.frame_time_ms << ','
+                    << static_cast<double>(frame_info.end_to_end_time) / 1e6 << ',' << static_cast<double>(total_time) / 1e6
+                    << ',' << static_cast<double>(frame_info.rank_time) / 1e6 << ','
+                    << static_cast<double>(frame_info.sort_time) / 1e6 << ','
+                    << static_cast<double>(frame_info.inverse_time) / 1e6 << ','
+                    << static_cast<double>(frame_info.projection_time) / 1e6 << ','
+                    << static_cast<double>(frame_info.rendering_time) / 1e6 << ',' << present_ms << ','
+                    << frame_info.total_point_count << ',' << frame_info.loaded_point_count << ','
+                    << frame_info.visible_point_count << ',' << frame_info.visible_points_ratio << ','
+                    << swapchain_.width() << ',' << swapchain_.height() << ',' << ModelTypeTag() << ','
+                    << DrawMethodTag() << ',' << MsaaSamples() << ',' << (vsync_enabled_ ? "on" : "off") << ','
+                    << splat_push_constants_.mip_bias << ',' << (splat_push_constants_.mip_modulation ? "on" : "off") << ','
+                    << splat_push_constants_.log_p_min << '\n';
+    metrics_stream_.flush();
+
+    if (auto_close_when_done_ && capture_seconds_ > 0.0) {
+      const uint64_t capture_ns = static_cast<uint64_t>(capture_seconds_ * 1e9);
+      if (now >= metrics_capture_start_ns_ + capture_ns) {
+        terminate_ = true;
+      }
+    }
+  }
+
   void LoadSplats(const std::string& ply_filepath) {
     splat_load_thread_.Cancel();
     splat_load_thread_.Start(ply_filepath);
+    load_completed_timestamp_ns_ = 0;
+    metrics_capture_start_ns_ = 0;
+    metrics_capture_started_ = false;
   }
 
   void LoadSplatsAsync(const std::string& ply_filepath) {
@@ -610,6 +783,8 @@ class Engine::Impl {
   }
 
   void Run() {
+    OpenMetricsStreamIfNeeded();
+
     viewer::WindowCreateInfo window_info = {};
     window_info.instance = context_.instance();
     window_info.physical_device = context_.physical_device();
@@ -622,8 +797,14 @@ class Engine::Impl {
     window_info.samples = samples_;
     viewer_.CreateWindow(window_info);
 
+    if (display_mode_ == DisplayMode::Windowed) {
+      viewer_.SetWindowSize(window_width_, window_height_);
+    } else {
+      viewer_.SetWindowedFullscreen();
+    }
+
     // create swapchain
-    swapchain_ = vk::Swapchain(context_, viewer_.surface());
+    swapchain_ = vk::Swapchain(context_, viewer_.surface(), vsync_enabled_);
 
     viewer_.Show();
     terminate_ = false;
@@ -814,10 +995,7 @@ class Engine::Impl {
     splat_push_constants_.model=glm::mat4(1.f);
 
     bool msaa_changed = false;
-    static int msaa = 0;
-
     bool depth_format_changed = false;
-    static int depth_format = 1;
 
     // draw ui
     {
@@ -947,6 +1125,10 @@ class Engine::Impl {
         float visible_points_ratio = frame_info.loaded_point_count > 0 ? static_cast<float>(visible_point_count) /
                                                                              frame_info.loaded_point_count * 100.f
                                                                        : 0.f;
+        frame_info.visible_point_count = visible_point_count;
+        frame_info.visible_points_ratio = visible_points_ratio;
+        frame_info.fps = io.Framerate;
+        frame_info.frame_time_ms = io.Framerate > 0.f ? 1e3f / io.Framerate : 0.f;
         ImGui::Text("%d (%.2f%%) visible splats", visible_point_count, visible_points_ratio);
 
         ImGui::Text("size      : %dx%d", swapchain_.width(), swapchain_.height());
@@ -970,44 +1152,40 @@ class Engine::Impl {
         ImGui::Text("present   : %7.3fms",
                     static_cast<double>(frame_info.present_done_timestamp - frame_info.present_timestamp) / 1e6);
 
-        static int vsync = 1;
         ImGui::Text("Vsync");
         ImGui::SameLine();
-        ImGui::RadioButton("on", &vsync, 1);
+        ImGui::RadioButton("on", &ui_vsync_, 1);
         ImGui::SameLine();
-        ImGui::RadioButton("off", &vsync, 0);
+        ImGui::RadioButton("off", &ui_vsync_, 0);
 
-        if (vsync)
-          swapchain_.SetVsync(true);
-        else
-          swapchain_.SetVsync(false);
+        vsync_enabled_ = ui_vsync_ == 1;
+        swapchain_.SetVsync(vsync_enabled_);
 
         ImGui::Text("MSAA");
         ImGui::SameLine();
-        msaa_changed |= ImGui::RadioButton("Off", &msaa, 0);
+        msaa_changed |= ImGui::RadioButton("Off", &ui_msaa_, 0);
         ImGui::SameLine();
-        msaa_changed |= ImGui::RadioButton("2x", &msaa, 1);
+        msaa_changed |= ImGui::RadioButton("2x", &ui_msaa_, 1);
         ImGui::SameLine();
-        msaa_changed |= ImGui::RadioButton("4x", &msaa, 2);
+        msaa_changed |= ImGui::RadioButton("4x", &ui_msaa_, 2);
 
         ImGui::Text("Depth");
         ImGui::SameLine();
-        depth_format_changed |= ImGui::RadioButton("U16", &depth_format, 0);
+        depth_format_changed |= ImGui::RadioButton("U16", &ui_depth_format_, 0);
         ImGui::SameLine();
-        depth_format_changed |= ImGui::RadioButton("F32", &depth_format, 1);
+        depth_format_changed |= ImGui::RadioButton("F32", &ui_depth_format_, 1);
 
-        static int draw_method = 0;
         ImGui::Text("Draw method");
         ImGui::SameLine();
-        ImGui::RadioButton("Triangles", &draw_method, 0);
+        ImGui::RadioButton("Triangles", &ui_draw_method_, 0);
         ImGui::SameLine();
 
         // clickable only when geometry shader is available
         ImGui::BeginDisabled(!context_.geometry_shader_available());
-        ImGui::RadioButton("Geom Shader", &draw_method, 1);
+        ImGui::RadioButton("Geom Shader", &ui_draw_method_, 1);
         ImGui::EndDisabled();
 
-        switch (draw_method) {
+        switch (ui_draw_method_) {
           case 0:
             splat_render_mode_ = SplatRenderMode::TriangleList;
             break;
@@ -1015,22 +1193,22 @@ class Engine::Impl {
           case 1:
             splat_render_mode_ = SplatRenderMode::GeometryShader;
             model_type_ = ModelType::GS;
+            ui_model_type_ = 0;
             break;
 
           default:
             break;
         }
 
-        static int model_type = static_cast<int>(model_type_);
         ImGui::Text("Model Type");
         ImGui::SameLine();
-        ImGui::RadioButton("GS", &model_type, 0);
-        if(draw_method == 0){
+        ImGui::RadioButton("GS", &ui_model_type_, 0);
+        if (ui_draw_method_ == 0) {
           ImGui::SameLine();
-          ImGui::RadioButton("RayGS", &model_type, 1);
+          ImGui::RadioButton("RayGS", &ui_model_type_, 1);
         }
 
-        switch (model_type) {
+        switch (ui_model_type_) {
           case 0:
             model_type_ = ModelType::GS;
             break;
@@ -1416,20 +1594,21 @@ class Engine::Impl {
       frame_info.present_timestamp = Clock::timestamp();
       vkQueuePresentKHR(context_.graphics_queue(), &present_info);
       frame_info.present_done_timestamp = Clock::timestamp();
+      MaybeLogMetrics(frame_info);
 
       frame_counter_++;
     }
 
     if (msaa_changed || depth_format_changed) {
-      if (msaa == 0) {
+      if (ui_msaa_ == 0) {
         samples_ = VK_SAMPLE_COUNT_1_BIT;
-      } else if (msaa == 1) {
+      } else if (ui_msaa_ == 1) {
         samples_ = VK_SAMPLE_COUNT_2_BIT;
-      } else if (msaa == 2) {
+      } else if (ui_msaa_ == 2) {
         samples_ = VK_SAMPLE_COUNT_4_BIT;
       }
 
-      switch (depth_format) {
+      switch (ui_depth_format_) {
         case 0:
           depth_format_ = VK_FORMAT_D16_UNORM;
           break;
@@ -1637,6 +1816,14 @@ class Engine::Impl {
   }
 
   DisplayMode display_mode_ = DisplayMode::Windowed;
+  int window_width_ = 1600;
+  int window_height_ = 900;
+  bool vsync_enabled_ = true;
+  int ui_vsync_ = 1;
+  int ui_msaa_ = 0;
+  int ui_depth_format_ = 1;
+  int ui_draw_method_ = 0;
+  int ui_model_type_ = 1;
 
   std::atomic_bool terminate_ = false;
 
@@ -1712,6 +1899,10 @@ class Engine::Impl {
     bool drew_splats = false;
     uint32_t total_point_count = 0;
     uint32_t loaded_point_count = 0;
+    uint32_t visible_point_count = 0;
+    float visible_points_ratio = 0.f;
+    float fps = 0.f;
+    float frame_time_ms = 0.f;
 
     uint64_t rank_time = 0;
     uint64_t sort_time = 0;
@@ -1754,6 +1945,14 @@ class Engine::Impl {
 
   bool show_axis_ = true;
   bool show_grid_ = true;
+  std::string metrics_csv_path_;
+  double warmup_seconds_ = 0.0;
+  double capture_seconds_ = 0.0;
+  bool auto_close_when_done_ = false;
+  uint64_t load_completed_timestamp_ns_ = 0;
+  uint64_t metrics_capture_start_ns_ = 0;
+  bool metrics_capture_started_ = false;
+  std::ofstream metrics_stream_;
 
   vk::CpuBuffer visible_point_count_cpu_buffer_;  // (2) for debug
 
@@ -1779,6 +1978,8 @@ Engine::~Engine() = default;
 void Engine::LoadSplats(const std::string& ply_filepath) { impl_->LoadSplats(ply_filepath); }
 
 void Engine::LoadSplatsAsync(const std::string& ply_filepath) { impl_->LoadSplatsAsync(ply_filepath); }
+
+void Engine::SetStartupOptions(const StartupOptions& options) { impl_->SetStartupOptions(options); }
 
 void Engine::Run() { impl_->Run(); }
 
