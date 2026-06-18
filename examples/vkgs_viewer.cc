@@ -1,6 +1,8 @@
 #include <algorithm>
+#include <array>
 #include <cctype>
 #include <iostream>
+#include <sstream>
 #include <stdexcept>
 #include <string>
 
@@ -63,6 +65,23 @@ vkgs::Engine::ModelType ParseModelType(const std::string& value) {
   throw std::invalid_argument("Invalid value for --model-type: " + value);
 }
 
+glm::vec3 ParseVec3(const std::string& value, const std::string& name) {
+  const auto normalized = value.rfind("v:", 0) == 0 ? value.substr(2) : value;
+  std::array<float, 3> out = {};
+  std::stringstream ss(normalized);
+  std::string item;
+  for (size_t i = 0; i < out.size(); ++i) {
+    if (!std::getline(ss, item, ',')) {
+      throw std::invalid_argument("Invalid value for --" + name + ": " + value);
+    }
+    out[i] = std::stof(item);
+  }
+  if (std::getline(ss, item, ',')) {
+    throw std::invalid_argument("Invalid value for --" + name + ": " + value);
+  }
+  return {out[0], out[1], out[2]};
+}
+
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -85,6 +104,13 @@ int main(int argc, char** argv) {
   parser.add_argument("--warmup-sec").default_value(std::string("5")).help("warmup seconds before sampling");
   parser.add_argument("--capture-sec").default_value(std::string("10")).help("capture seconds for metrics");
   parser.add_argument("--auto-exit").default_value(std::string("off")).help("on/off");
+  parser.add_argument("--camera-position").default_value(std::string("")).help("camera eye as x,y,z");
+  parser.add_argument("--camera-forward").default_value(std::string("")).help("camera forward as x,y,z");
+  parser.add_argument("--camera-up").default_value(std::string("")).help("camera up as x,y,z");
+  parser.add_argument("--camera-fx").default_value(std::string("")).help("camera fx from cameras.json");
+  parser.add_argument("--camera-fy").default_value(std::string("")).help("camera fy from cameras.json");
+  parser.add_argument("--camera-image-width").default_value(std::string("")).help("camera calibration image width");
+  parser.add_argument("--camera-image-height").default_value(std::string("")).help("camera calibration image height");
   try {
     parser.parse_args(argc, argv);
   } catch (const std::exception& err) {
@@ -113,6 +139,37 @@ int main(int argc, char** argv) {
     options.warmup_seconds = std::stod(parser.get<std::string>("warmup-sec"));
     options.capture_seconds = std::stod(parser.get<std::string>("capture-sec"));
     options.auto_close = ParseOnOff(parser.get<std::string>("auto-exit"), "auto-exit");
+
+    const auto camera_position = parser.get<std::string>("camera-position");
+    const auto camera_forward = parser.get<std::string>("camera-forward");
+    const auto camera_up = parser.get<std::string>("camera-up");
+    if (!camera_position.empty() || !camera_forward.empty() || !camera_up.empty()) {
+      if (camera_position.empty() || camera_forward.empty() || camera_up.empty()) {
+        throw std::invalid_argument(
+            "--camera-position, --camera-forward and --camera-up must be provided together");
+      }
+      options.use_camera_override = true;
+      options.camera_position = ParseVec3(camera_position, "camera-position");
+      options.camera_forward = ParseVec3(camera_forward, "camera-forward");
+      options.camera_up = ParseVec3(camera_up, "camera-up");
+    }
+
+    const auto camera_fx = parser.get<std::string>("camera-fx");
+    const auto camera_fy = parser.get<std::string>("camera-fy");
+    const auto camera_image_width = parser.get<std::string>("camera-image-width");
+    const auto camera_image_height = parser.get<std::string>("camera-image-height");
+    if (!camera_fx.empty() || !camera_fy.empty() || !camera_image_width.empty() || !camera_image_height.empty()) {
+      if (camera_fx.empty() || camera_fy.empty() || camera_image_width.empty() || camera_image_height.empty()) {
+        throw std::invalid_argument(
+            "--camera-fx, --camera-fy, --camera-image-width and --camera-image-height must be provided together");
+      }
+      options.use_camera_intrinsics = true;
+      options.camera_fx = std::stof(camera_fx);
+      options.camera_fy = std::stof(camera_fy);
+      options.camera_image_width = std::stoi(camera_image_width);
+      options.camera_image_height = std::stoi(camera_image_height);
+    }
+
     engine.SetStartupOptions(options);
 
     if (parser.is_used("input")) {

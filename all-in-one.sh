@@ -6,6 +6,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$SCRIPT_DIR"
 MODELS_DIR="$PROJECT_DIR/../models"
 RUNNER="$PROJECT_DIR/run.sh"
+CAMERA_ENV_TOOL="$PROJECT_DIR/camera_json_to_env.py"
 
 SCENE=""
 INPUT=""
@@ -32,6 +33,9 @@ METRICS_LOGGING="on"
 WARMUP_SEC="5"
 CAPTURE_SEC="10"
 AUTO_EXIT="on"
+CAMERA_JSON=""
+CAMERA_ID=""
+CAMERA_DOLLY="0.0"
 DRY_RUN=0
 RESULTS_DIR="$PROJECT_DIR/experiment-results"
 LOG_DIR="$RESULTS_DIR/gpu"
@@ -68,6 +72,9 @@ usage() {
   --warmup-sec SEC            指标预热秒数，默认 5
   --capture-sec SEC           指标采样秒数，默认 10
   --auto-exit VALUE           on / off，采样结束后自动退出，默认 on
+  --camera-json PATH          使用 3DGS cameras.json 中的视角
+  --camera-id N               cameras.json 中的相机 id
+  --camera-dolly VALUE        沿相机 forward 方向平移，默认 0.0
   --log-dir PATH              GPU 日志目录
   --dry-run                   只打印命令，不实际执行
   -h, --help                  显示帮助
@@ -207,6 +214,18 @@ while [[ $# -gt 0 ]]; do
       AUTO_EXIT="$2"
       shift 2
       ;;
+    --camera-json)
+      CAMERA_JSON="$2"
+      shift 2
+      ;;
+    --camera-id)
+      CAMERA_ID="$2"
+      shift 2
+      ;;
+    --camera-dolly)
+      CAMERA_DOLLY="$2"
+      shift 2
+      ;;
     --log-dir)
       LOG_DIR="$2"
       shift 2
@@ -247,6 +266,22 @@ if [[ ! -x "$RUNNER" ]]; then
   exit 1
 fi
 
+if [[ -n "$CAMERA_JSON" || -n "$CAMERA_ID" ]]; then
+  if [[ -z "$CAMERA_JSON" || -z "$CAMERA_ID" ]]; then
+    echo "使用相机序列时，必须同时提供 --camera-json 与 --camera-id。" >&2
+    exit 1
+  fi
+  if [[ ! -f "$CAMERA_JSON" ]]; then
+    echo "未找到 cameras.json：$CAMERA_JSON" >&2
+    exit 1
+  fi
+  if [[ ! -f "$CAMERA_ENV_TOOL" ]]; then
+    echo "未找到相机转换脚本：$CAMERA_ENV_TOOL" >&2
+    exit 1
+  fi
+  eval "$(python3 "$CAMERA_ENV_TOOL" --camera-json "$CAMERA_JSON" --camera-id "$CAMERA_ID" --dolly "$CAMERA_DOLLY")"
+fi
+
 echo "实验配置："
 echo "  模型文件   : $INPUT"
 echo "  分辨率     : ${WIDTH}x${HEIGHT}"
@@ -269,6 +304,11 @@ if [[ "$(lower "$METRICS_LOGGING")" == "on" ]]; then
   echo "  Viewer 指标 : on (warmup=${WARMUP_SEC}s, capture=${CAPTURE_SEC}s, auto-exit=$AUTO_EXIT)"
 else
   echo "  Viewer 指标 : off"
+fi
+if [[ -n "$CAMERA_JSON" ]]; then
+  echo "  相机序列   : $CAMERA_JSON (id=$CAMERA_ID, image=$CAMERA_IMAGE_NAME, dolly=$CAMERA_DOLLY)"
+else
+  echo "  相机序列   : off"
 fi
 
 if [[ $BUILD_FIRST -eq 1 ]]; then
@@ -475,6 +515,9 @@ if [[ -n "$SCENE" ]]; then
 else
   RUN_TAG="custom_${CONFIG_TAG}_${RUN_TAG}"
 fi
+if [[ -n "$CAMERA_JSON" ]]; then
+  RUN_TAG="${RUN_TAG}_cam-${CAMERA_ID}_dolly-$(slugify "$CAMERA_DOLLY")"
+fi
 
 if [[ "$(lower "$METRICS_LOGGING")" == "on" ]]; then
   mkdir -p "$METRICS_DIR"
@@ -501,6 +544,17 @@ if [[ $DRY_RUN -eq 1 ]]; then
   )
   if [[ -n "$METRICS_FILE" ]]; then
     VIEWER_ARGS+=(--metrics-csv "$METRICS_FILE" --warmup-sec "$WARMUP_SEC" --capture-sec "$CAPTURE_SEC" --auto-exit "$AUTO_EXIT")
+  fi
+  if [[ -n "$CAMERA_JSON" ]]; then
+    VIEWER_ARGS+=(
+      --camera-position "v:$CAMERA_POSITION"
+      --camera-forward "v:$CAMERA_FORWARD"
+      --camera-up "v:$CAMERA_UP"
+      "--camera-fx=$CAMERA_FX"
+      "--camera-fy=$CAMERA_FY"
+      "--camera-image-width=$CAMERA_IMAGE_WIDTH"
+      "--camera-image-height=$CAMERA_IMAGE_HEIGHT"
+    )
   fi
   printf '  %q' "$RUNNER" "${VIEWER_ARGS[@]}"
   printf '\n'
@@ -541,6 +595,18 @@ VIEWER_ARGS=(
 
 if [[ -n "$METRICS_FILE" ]]; then
   VIEWER_ARGS+=(--metrics-csv "$METRICS_FILE" --warmup-sec "$WARMUP_SEC" --capture-sec "$CAPTURE_SEC" --auto-exit "$AUTO_EXIT")
+fi
+
+if [[ -n "$CAMERA_JSON" ]]; then
+  VIEWER_ARGS+=(
+    --camera-position "v:$CAMERA_POSITION"
+    --camera-forward "v:$CAMERA_FORWARD"
+    --camera-up "v:$CAMERA_UP"
+    "--camera-fx=$CAMERA_FX"
+    "--camera-fy=$CAMERA_FY"
+    "--camera-image-width=$CAMERA_IMAGE_WIDTH"
+    "--camera-image-height=$CAMERA_IMAGE_HEIGHT"
+  )
 fi
 
 echo "启动命令："

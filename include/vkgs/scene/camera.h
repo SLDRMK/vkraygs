@@ -18,6 +18,10 @@ class Camera {
   auto Far() const noexcept { return far_; }
 
   void SetWindowSize(uint32_t width, uint32_t height);
+  void SetViewOverride(const glm::vec3& eye, const glm::vec3& forward, const glm::vec3& up);
+  void ClearViewOverride();
+  void SetPerspectiveFromIntrinsics(float fx, float fy, uint32_t image_width, uint32_t image_height);
+  void ClearPerspectiveOverride();
 
   /**
    * Set fov and dolly zoom
@@ -44,6 +48,15 @@ class Camera {
   float fovy_ = glm::radians(60.f);
   float near_ = 0.01f;
   float far_ = 100.f;
+  bool use_view_override_ = false;
+  glm::vec3 eye_override_ = {0.f, 0.f, 0.f};
+  glm::vec3 forward_override_ = {0.f, 0.f, -1.f};
+  glm::vec3 up_override_ = {0.f, 1.f, 0.f};
+  bool use_projection_override_ = false;
+  float fx_override_ = 1.f;
+  float fy_override_ = 1.f;
+  uint32_t image_width_override_ = 1;
+  uint32_t image_height_override_ = 1;
 
   glm::vec3 center_ = {0.f, 0.f, 0.f};
   // camera = center + r (sin phi sin theta, cos phi, sin phi cos theta)

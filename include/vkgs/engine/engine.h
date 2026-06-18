@@ -4,6 +4,8 @@
 #include <memory>
 #include <string>
 
+#include <glm/glm.hpp>
+
 namespace vkgs {
 
 class Splats;
@@ -50,6 +52,15 @@ class Engine {
     float log_p_min = -4.0f;
     bool show_axis = true;
     bool show_grid = true;
+    bool use_camera_override = false;
+    glm::vec3 camera_position = {0.f, 0.f, 0.f};
+    glm::vec3 camera_forward = {0.f, 0.f, -1.f};
+    glm::vec3 camera_up = {0.f, 1.f, 0.f};
+    bool use_camera_intrinsics = false;
+    float camera_fx = 1.f;
+    float camera_fy = 1.f;
+    int camera_image_width = 1;
+    int camera_image_height = 1;
     std::string metrics_csv_path;
     double warmup_seconds = 5.0;
     double capture_seconds = 10.0;

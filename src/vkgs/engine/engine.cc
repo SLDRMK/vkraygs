@@ -674,6 +674,19 @@ class Engine::Impl {
     show_axis_ = options.show_axis;
     show_grid_ = options.show_grid;
 
+    if (options.use_camera_override) {
+      camera_.SetViewOverride(options.camera_position, options.camera_forward, options.camera_up);
+    } else {
+      camera_.ClearViewOverride();
+    }
+
+    if (options.use_camera_intrinsics) {
+      camera_.SetPerspectiveFromIntrinsics(options.camera_fx, options.camera_fy, options.camera_image_width,
+                                           options.camera_image_height);
+    } else {
+      camera_.ClearPerspectiveOverride();
+    }
+
     metrics_csv_path_ = options.metrics_csv_path;
     warmup_seconds_ = std::max(options.warmup_seconds, 0.0);
     capture_seconds_ = std::max(options.capture_seconds, 0.0);
